@@ -8,4 +8,4 @@ build:
   go build .
 
 test:
-  go test ./test -v
+  go test . -v
