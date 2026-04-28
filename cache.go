@@ -1,14 +1,14 @@
 package main
 
 type Cache[K comparable, V any] struct {
-	maxElements int
-	numElements int
+	maxElements uint32
+	numElements uint32
 	front       *nodeElement[K, V]
 	back        *nodeElement[K, V]
 	lookup      map[K]*nodeElement[K, V]
 }
 
-func CreateCache[K comparable, V any](maxElements int) *Cache[K, V] {
+func CreateCache[K comparable, V any](maxElements uint32) *Cache[K, V] {
 	// Setup sentinel front and back nodes to make life easier when moving elements around
 	front := &nodeElement[K, V]{
 		prev: nil,
