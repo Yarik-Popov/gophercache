@@ -38,7 +38,8 @@ func CreateCache[K comparable, V any](maxElements uint32) *Cache[K, V] {
 func (c *Cache[K, V]) Get(key K) (V, bool) {
 	node, ok := c.lookup[key]
 	if !ok {
-		return node.value, false
+		var zero V // Gets zeroed out so still has a value. Now code compiles
+		return zero, false
 	}
 
 	// This case should never happen but just in case panic
