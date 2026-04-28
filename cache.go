@@ -1,41 +1,39 @@
 package main
 
-type Cache struct {
+type Cache[K comparable, V any] struct {
 	maxElements int
 	numElements int
-	front       *nodeElement
-	back        *nodeElement
-	lookup      map[string]*nodeElement
+	front       *nodeElement[K, V]
+	back        *nodeElement[K, V]
+	lookup      map[K]*nodeElement[K, V]
 }
 
-func CreateCache(maxElements int) *Cache {
+func CreateCache[K comparable, V any](maxElements int) *Cache[K, V] {
 	// Setup sentinel front and back nodes to make life easier when moving elements around
-	front := &nodeElement{
-		prev:  nil,
-		next:  nil,
-		value: nil,
+	front := &nodeElement[K, V]{
+		prev: nil,
+		next: nil,
 	}
-	back := &nodeElement{
-		prev:  front,
-		next:  nil,
-		value: nil,
+	back := &nodeElement[K, V]{
+		prev: front,
+		next: nil,
 	}
 	front.next = back
 
-	cache := &Cache{
+	cache := &Cache[K, V]{
 		maxElements: maxElements,
 		numElements: 0,
 		front:       front,
 		back:        back,
-		lookup:      make(map[string]*nodeElement),
+		lookup:      make(map[K]*nodeElement[K, V]),
 	}
 	return cache
 }
 
-func (c *Cache) Get(key string) (any, bool) {
+func (c *Cache[K, V]) Get(key K) (V, bool) {
 	node, ok := c.lookup[key]
 	if !ok {
-		return nil, false
+		return node.value, false
 	}
 
 	// This case should never happen but just in case panic
@@ -43,31 +41,31 @@ func (c *Cache) Get(key string) (any, bool) {
 		panic("Node is expected but not found")
 	}
 
-	removeNode(node)
+	node.removeNode()
 	c.insertNode(node)
 
 	return node.value, true
 }
 
-func (c *Cache) Put(key string, value any) {
+func (c *Cache[K, V]) Put(key K, value V) {
 	node, ok := c.lookup[key]
 	if ok {
 		node.value = value
 
-		removeNode(node)
+		node.removeNode()
 		c.insertNode(node)
 		return
 	}
 
 	if c.maxElements == c.numElements {
 		oldLast := c.back.prev
-		removeNode(oldLast)
+		oldLast.removeNode()
 		c.numElements--
 		delete(c.lookup, oldLast.key)
 	}
 
 	c.numElements++
-	newNode := &nodeElement{
+	newNode := &nodeElement[K, V]{
 		value: value,
 		key:   key,
 	}
@@ -77,14 +75,14 @@ func (c *Cache) Put(key string, value any) {
 
 // Private
 
-type nodeElement struct {
-	prev  *nodeElement
-	next  *nodeElement
-	value any
-	key   string
+type nodeElement[K comparable, V any] struct {
+	prev  *nodeElement[K, V]
+	next  *nodeElement[K, V]
+	value V
+	key   K
 }
 
-func (c *Cache) insertNode(node *nodeElement) {
+func (c *Cache[K, V]) insertNode(node *nodeElement[K, V]) {
 	oldFirst := c.front.next
 	c.front.next = node
 	node.prev = c.front
@@ -92,7 +90,7 @@ func (c *Cache) insertNode(node *nodeElement) {
 	oldFirst.prev = node
 }
 
-func removeNode(node *nodeElement) {
+func (node *nodeElement[K, V]) removeNode() {
 	prev := node.prev
 	next := node.next
 	prev.next = next

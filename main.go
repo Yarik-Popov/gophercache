@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	cache := CreateCache(3)
+	cache := CreateCache[string, string](3)
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		parts := strings.Split(scanner.Text(), " ")
