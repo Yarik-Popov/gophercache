@@ -1,5 +1,10 @@
 package main
 
+type Map[K comparable, V any] interface {
+	Get(key K) (V, bool)
+	Put(key K, value V)
+}
+
 type Cache[K comparable, V any] struct {
 	maxElements uint32
 	numElements uint32
