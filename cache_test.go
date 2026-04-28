@@ -6,7 +6,7 @@ import (
 
 func TestCache_BasicOperations(t *testing.T) {
 	// Initialize with capacity for 2
-	c := CreateCache[string, int](2)
+	c := CreateCache[string, int](2, 0)
 
 	// Test 1: Get a non-existent key
 	if _, ok := c.Get("missing"); ok {
@@ -30,7 +30,7 @@ func TestCache_BasicOperations(t *testing.T) {
 
 func TestCache_EvictionLogic(t *testing.T) {
 	// Capacity of 2
-	c := CreateCache[string, string](2)
+	c := CreateCache[string, string](2, 0)
 
 	c.Put("first", "A")  // [A]
 	c.Put("second", "B") // [B, A]
@@ -57,7 +57,7 @@ func TestCache_EvictionLogic(t *testing.T) {
 func TestCache_Generics(t *testing.T) {
 	t.Run("IntKeys_StructValues", func(t *testing.T) {
 		type User struct{ Name string }
-		c := CreateCache[int, User](1)
+		c := CreateCache[int, User](1, 0)
 
 		user := User{Name: "Alice"}
 		c.Put(1, user)
@@ -71,7 +71,7 @@ func TestCache_Generics(t *testing.T) {
 
 func TestCache_InternalPointers(t *testing.T) {
 	// This test ensures your doubly linked list isn't breaking
-	c := CreateCache[string, int](3)
+	c := CreateCache[string, int](3, 0)
 
 	c.Put("1", 1)
 	c.Put("2", 2)
