@@ -13,10 +13,10 @@ type Cache[K comparable, V any] struct {
 	front       *nodeElement[K, V]
 	back        *nodeElement[K, V]
 	lookup      map[K]*nodeElement[K, V]
-	ttl         time.Duration
+	duration    time.Duration
 }
 
-func CreateCache[K comparable, V any](maxElements uint32, ttl time.Duration) *Cache[K, V] {
+func CreateCache[K comparable, V any](maxElements uint32, duration time.Duration) *Cache[K, V] {
 	// Setup sentinel front and back nodes to make life easier when moving elements around
 	front := &nodeElement[K, V]{
 		prev: nil,
@@ -34,7 +34,7 @@ func CreateCache[K comparable, V any](maxElements uint32, ttl time.Duration) *Ca
 		front:       front,
 		back:        back,
 		lookup:      make(map[K]*nodeElement[K, V]),
-		ttl:         ttl,
+		duration:    duration,
 	}
 	return cache
 }
@@ -51,13 +51,13 @@ func (c *Cache[K, V]) Get(key K) (V, bool) {
 		panic("Node is expected but not found")
 	}
 
-	if c.ttl != 0 {
+	if c.duration != 0 {
 		now := time.Now()
-		if node.ttl.Before(now) {
+		if node.expiryTime.Before(now) {
 			c.deleteNode(node)
 			return node.value, false
 		}
-		node.ttl = now.Add(c.ttl)
+		node.expiryTime = now.Add(c.duration)
 	}
 
 	node.removeNode()
@@ -70,7 +70,7 @@ func (c *Cache[K, V]) Put(key K, value V) {
 	node, ok := c.lookup[key]
 	if ok {
 		node.value = value
-		node.ttl = time.Now().Add(c.ttl)
+		node.expiryTime = time.Now().Add(c.duration)
 
 		node.removeNode()
 		c.insertNode(node)
@@ -84,9 +84,9 @@ func (c *Cache[K, V]) Put(key K, value V) {
 
 	c.numElements++
 	newNode := &nodeElement[K, V]{
-		value: value,
-		key:   key,
-		ttl:   time.Now().Add(c.ttl),
+		value:      value,
+		key:        key,
+		expiryTime: time.Now().Add(c.duration),
 	}
 	c.insertNode(newNode)
 	c.lookup[key] = newNode
@@ -95,11 +95,11 @@ func (c *Cache[K, V]) Put(key K, value V) {
 // Private
 
 type nodeElement[K comparable, V any] struct {
-	prev  *nodeElement[K, V]
-	next  *nodeElement[K, V]
-	value V
-	key   K
-	ttl   time.Time
+	prev       *nodeElement[K, V]
+	next       *nodeElement[K, V]
+	value      V
+	key        K
+	expiryTime time.Time
 }
 
 func (c *Cache[K, V]) insertNode(node *nodeElement[K, V]) {
