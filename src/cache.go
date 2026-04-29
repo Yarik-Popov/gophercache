@@ -113,14 +113,6 @@ func (c *Cache[K, V]) Last() *nodeElement[K, V] {
 
 // Private
 
-type nodeElement[K comparable, V any] struct {
-	Prev       *nodeElement[K, V]
-	Next       *nodeElement[K, V]
-	Value      V
-	Key        K
-	ExpiryTime time.Time
-}
-
 func (c *Cache[K, V]) insertNode(node *nodeElement[K, V]) {
 	oldFirst := c.front.Next
 	c.front.Next = node
@@ -133,11 +125,4 @@ func (c *Cache[K, V]) deleteNode(node *nodeElement[K, V]) {
 	node.removeNode()
 	c.NumElements--
 	delete(c.lookup, node.Key)
-}
-
-func (node *nodeElement[K, V]) removeNode() {
-	prev := node.Prev
-	next := node.Next
-	prev.Next = next
-	next.Prev = prev
 }
