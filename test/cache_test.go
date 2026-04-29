@@ -1,12 +1,13 @@
-package main
+package src
 
 import (
+	"Yarik-Popov/gophercache/src"
 	"testing"
 )
 
 func TestCache_BasicOperations(t *testing.T) {
 	// Initialize with capacity for 2
-	c := CreateCache[string, int](2, 0)
+	c := cache.CreateCache[string, int](2, 0)
 
 	// Test 1: Get a non-existent key
 	if _, ok := c.Get("missing"); ok {
@@ -30,7 +31,7 @@ func TestCache_BasicOperations(t *testing.T) {
 
 func TestCache_EvictionLogic(t *testing.T) {
 	// Capacity of 2
-	c := CreateCache[string, string](2, 0)
+	c := cache.CreateCache[string, string](2, 0)
 
 	c.Put("first", "A")  // [A]
 	c.Put("second", "B") // [B, A]
@@ -49,15 +50,15 @@ func TestCache_EvictionLogic(t *testing.T) {
 		t.Errorf("expected 'first' to remain in cache, got %v", val)
 	}
 
-	if c.numElements > c.maxElements {
-		t.Errorf("numElements (%d) exceeds maxElements (%d)", c.numElements, c.maxElements)
+	if c.NumElements > c.MaxElements {
+		t.Errorf("numElements (%d) exceeds maxElements (%d)", c.NumElements, c.MaxElements)
 	}
 }
 
 func TestCache_Generics(t *testing.T) {
 	t.Run("IntKeys_StructValues", func(t *testing.T) {
 		type User struct{ Name string }
-		c := CreateCache[int, User](1, 0)
+		c := cache.CreateCache[int, User](1, 0)
 
 		user := User{Name: "Alice"}
 		c.Put(1, user)
@@ -71,25 +72,25 @@ func TestCache_Generics(t *testing.T) {
 
 func TestCache_InternalPointers(t *testing.T) {
 	// This test ensures your doubly linked list isn't breaking
-	c := CreateCache[string, int](3, 0)
+	c := cache.CreateCache[string, int](3, 0)
 
 	c.Put("1", 1)
 	c.Put("2", 2)
 	c.Put("3", 3)
 
 	// Current order (Front to Back): 3 -> 2 -> 1
-	if c.front.next.key != "3" || c.back.prev.key != "1" {
-		t.Errorf("Initial pointer state wrong: front=%v, back=%v", c.front.next.key, c.back.prev.key)
+	if c.First().Key != "3" || c.Last().Key != "1" {
+		t.Errorf("Initial pointer state wrong: front=%v, back=%v", c.First().Key, c.Last().Key)
 	}
 
 	// Move middle to front
 	c.Get("2") // Order: 2 -> 3 -> 1
 
-	if c.front.next.key != "2" {
-		t.Errorf("Get didn't move key to front. Got front=%v", c.front.next.key)
+	if c.First().Key != "2" {
+		t.Errorf("Get didn't move key to front. Got front=%v", c.First().Key)
 	}
 
-	if c.front.next.next.key != "3" || c.back.prev.prev.key != "3" {
+	if c.First().Next.Key != "3" || c.Last().Prev.Key != "3" {
 		t.Error("Middle pointers broken after Get")
 	}
 }

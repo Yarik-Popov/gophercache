@@ -1,6 +1,7 @@
-package main
+package src
 
 import (
+	"Yarik-Popov/gophercache/src"
 	"testing"
 	"time"
 )
@@ -8,7 +9,7 @@ import (
 func TestCache_TTLEviction(t *testing.T) {
 	// Create cache with 100ms TTL
 	duration := 100 * time.Millisecond
-	c := CreateCache[string, string](10, duration)
+	c := cache.CreateCache[string, string](10, duration)
 
 	c.Put("ephemeral", "I vanish")
 
@@ -26,14 +27,14 @@ func TestCache_TTLEviction(t *testing.T) {
 	}
 
 	// 4. Verify internal state was cleaned up
-	if c.numElements != 0 {
-		t.Errorf("Expected numElements to be 0 after lazy eviction, got %d", c.numElements)
+	if c.NumElements != 0 {
+		t.Errorf("Expected numElements to be 0 after lazy eviction, got %d", c.NumElements)
 	}
 }
 
 func TestCache_TTLDisabled(t *testing.T) {
 	// Duration 0 should disable TTL
-	c := CreateCache[string, string](10, 0)
+	c := cache.CreateCache[string, string](10, 0)
 
 	c.Put("immortal", "I stay")
 
@@ -47,7 +48,7 @@ func TestCache_TTLDisabled(t *testing.T) {
 
 func TestCache_TTLResetOnPut(t *testing.T) {
 	duration := 100 * time.Millisecond
-	c := CreateCache[string, string](10, duration)
+	c := cache.CreateCache[string, string](10, duration)
 
 	c.Put("refresh", "v1")
 
