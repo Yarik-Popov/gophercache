@@ -1,4 +1,4 @@
-package main
+package cache
 
 import (
 	"sync"
@@ -11,8 +11,8 @@ type Map[K comparable, V any] interface {
 }
 
 type Cache[K comparable, V any] struct {
-	maxElements uint32
-	numElements uint32
+	MaxElements uint32
+	NumElements uint32
 	front       *nodeElement[K, V]
 	back        *nodeElement[K, V]
 	lookup      map[K]*nodeElement[K, V]
@@ -23,18 +23,18 @@ type Cache[K comparable, V any] struct {
 func CreateCache[K comparable, V any](maxElements uint32, duration time.Duration) *Cache[K, V] {
 	// Setup sentinel front and back nodes to make life easier when moving elements around
 	front := &nodeElement[K, V]{
-		prev: nil,
-		next: nil,
+		Prev: nil,
+		Next: nil,
 	}
 	back := &nodeElement[K, V]{
-		prev: front,
-		next: nil,
+		Prev: front,
+		Next: nil,
 	}
-	front.next = back
+	front.Next = back
 
 	cache := &Cache[K, V]{
-		maxElements: maxElements,
-		numElements: 0,
+		MaxElements: maxElements,
+		NumElements: 0,
 		front:       front,
 		back:        back,
 		lookup:      make(map[K]*nodeElement[K, V]),
@@ -60,17 +60,17 @@ func (c *Cache[K, V]) Get(key K) (V, bool) {
 
 	if c.duration > 0 {
 		now := time.Now()
-		if node.expiryTime.Before(now) {
+		if node.ExpiryTime.Before(now) {
 			c.deleteNode(node)
-			return node.value, false
+			return node.Value, false
 		}
-		node.expiryTime = now.Add(c.duration)
+		node.ExpiryTime = now.Add(c.duration)
 	}
 
 	node.removeNode()
 	c.insertNode(node)
 
-	return node.value, true
+	return node.Value, true
 }
 
 func (c *Cache[K, V]) Put(key K, value V) {
@@ -79,8 +79,8 @@ func (c *Cache[K, V]) Put(key K, value V) {
 
 	node, ok := c.lookup[key]
 	if ok {
-		node.value = value
-		node.expiryTime = time.Now().Add(c.duration)
+		node.Value = value
+		node.ExpiryTime = time.Now().Add(c.duration)
 
 		node.removeNode()
 		c.insertNode(node)
@@ -88,48 +88,56 @@ func (c *Cache[K, V]) Put(key K, value V) {
 	}
 
 	newNode := &nodeElement[K, V]{
-		value:      value,
-		key:        key,
-		expiryTime: time.Now().Add(c.duration),
+		Value:      value,
+		Key:        key,
+		ExpiryTime: time.Now().Add(c.duration),
 	}
 
-	if c.maxElements == c.numElements {
-		oldLast := c.back.prev
+	if c.MaxElements == c.NumElements {
+		oldLast := c.back.Prev
 		c.deleteNode(oldLast)
 	}
 
-	c.numElements++
+	c.NumElements++
 	c.insertNode(newNode)
 	c.lookup[key] = newNode
+}
+
+func (c *Cache[K, V]) First() *nodeElement[K, V] {
+	return c.front.Next
+}
+
+func (c *Cache[K, V]) Last() *nodeElement[K, V] {
+	return c.back.Prev
 }
 
 // Private
 
 type nodeElement[K comparable, V any] struct {
-	prev       *nodeElement[K, V]
-	next       *nodeElement[K, V]
-	value      V
-	key        K
-	expiryTime time.Time
+	Prev       *nodeElement[K, V]
+	Next       *nodeElement[K, V]
+	Value      V
+	Key        K
+	ExpiryTime time.Time
 }
 
 func (c *Cache[K, V]) insertNode(node *nodeElement[K, V]) {
-	oldFirst := c.front.next
-	c.front.next = node
-	node.prev = c.front
-	node.next = oldFirst
-	oldFirst.prev = node
+	oldFirst := c.front.Next
+	c.front.Next = node
+	node.Prev = c.front
+	node.Next = oldFirst
+	oldFirst.Prev = node
 }
 
 func (c *Cache[K, V]) deleteNode(node *nodeElement[K, V]) {
 	node.removeNode()
-	c.numElements--
-	delete(c.lookup, node.key)
+	c.NumElements--
+	delete(c.lookup, node.Key)
 }
 
 func (node *nodeElement[K, V]) removeNode() {
-	prev := node.prev
-	next := node.next
-	prev.next = next
-	next.prev = prev
+	prev := node.Prev
+	next := node.Next
+	prev.Next = next
+	next.Prev = prev
 }

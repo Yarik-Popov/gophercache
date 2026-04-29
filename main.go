@@ -1,14 +1,16 @@
 package main
 
 import (
+	"Yarik-Popov/gophercache/src"
 	"bufio"
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 func main() {
-	cache := CreateCache[string, string](3, 1)
+	keyValueStore := cache.CreateCache[string, string](3, 5*time.Second)
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		parts := strings.Split(scanner.Text(), " ")
@@ -17,7 +19,7 @@ func main() {
 		}
 		switch parts[0] {
 		case "g":
-			value, ok := cache.Get(parts[1])
+			value, ok := keyValueStore.Get(parts[1])
 			if ok {
 				fmt.Printf("Got %s: %s\n", parts[1], value)
 			} else {
@@ -25,7 +27,7 @@ func main() {
 			}
 		case "p":
 			fmt.Printf("Putting %s: %s\n", parts[1], parts[2])
-			cache.Put(parts[1], parts[2])
+			keyValueStore.Put(parts[1], parts[2])
 		}
 	}
 }
