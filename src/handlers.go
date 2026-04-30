@@ -10,8 +10,6 @@ type Server struct {
 	Cache *Cache[string, []byte]
 }
 
-type contextKey string
-
 func (s *Server) HandleGet(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
 	fmt.Println("Got /get/", key)

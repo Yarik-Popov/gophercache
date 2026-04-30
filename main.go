@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	// TODO: Make this configurable
+	// TODO:(6) Make this configurable
 	address := ":8080"
 	var maxElements uint32 = 3
 	ttl := 10 * time.Second
