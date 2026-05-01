@@ -12,8 +12,11 @@ import (
 func TestHandlers(t *testing.T) {
 	// Setup: Create a keyValueStore and a server
 	// Using a small TTL for testing
-	keyValueStore := cache.CreateCache[string, []byte](10, 500*time.Millisecond)
-	server := cache.Server{Cache: keyValueStore}
+	config := &cache.Config{
+		ExpirySeconds: 500 * time.Millisecond,
+		MaxElements:   10,
+	}
+	server, _ := cache.CreateServer(config)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /get/{key}", server.HandleGet)
@@ -59,7 +62,11 @@ func TestHandlers(t *testing.T) {
 }
 
 func TestAPITTL(t *testing.T) {
-	server := &cache.Server{Cache: cache.CreateCache[string, []byte](10, 100*time.Millisecond)}
+	config := &cache.Config{
+		ExpirySeconds: 100 * time.Millisecond,
+		MaxElements:   10,
+	}
+	server, _ := cache.CreateServer(config)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /get/{key}", server.HandleGet)
 	mux.HandleFunc("PUT /put/{key}", server.HandlePut)

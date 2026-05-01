@@ -6,15 +6,11 @@ import (
 	"net/http"
 )
 
-type Server struct {
-	Cache *Cache[string, []byte]
-}
-
 func (s *Server) HandleGet(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
 	fmt.Println("Got /get/", key)
 
-	keyValueStore := s.Cache
+	keyValueStore := s.localCache
 	val, ok := keyValueStore.Get(key)
 	if !ok {
 		fmt.Printf("Key '%s' not found\n", key)
@@ -39,7 +35,7 @@ func (s *Server) HandlePut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	keyValueStore := s.Cache
+	keyValueStore := s.localCache
 	keyValueStore.Put(key, val)
 
 	fmt.Printf("Updated key '%s' with '%s'\n", key, val)

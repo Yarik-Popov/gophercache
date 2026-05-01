@@ -17,8 +17,10 @@ func main() {
 	}
 
 	// Setup
-	keyValueStore := cache.CreateCache[string, []byte](config.MaxElements, config.ExpirySeconds)
-	server := cache.Server{Cache: keyValueStore}
+	server, err := cache.CreateServer(config)
+	if err != nil {
+		log.Fatal(err)
+	}
 	mux := http.NewServeMux()
 
 	// Routes
