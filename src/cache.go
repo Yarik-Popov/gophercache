@@ -11,8 +11,8 @@ type Map[K comparable, V any] interface {
 }
 
 type Cache[K comparable, V any] struct {
-	MaxElements uint32
-	NumElements uint32
+	MaxElements uint
+	NumElements uint
 	front       *nodeElement[K, V]
 	back        *nodeElement[K, V]
 	lookup      map[K]*nodeElement[K, V]
@@ -20,7 +20,7 @@ type Cache[K comparable, V any] struct {
 	lock        sync.Mutex
 }
 
-func CreateCache[K comparable, V any](maxElements uint32, duration time.Duration) *Cache[K, V] {
+func CreateCache[K comparable, V any](maxElements uint, duration time.Duration) *Cache[K, V] {
 	// Setup sentinel front and back nodes to make life easier when moving elements around
 	front := &nodeElement[K, V]{
 		Prev: nil,

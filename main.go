@@ -5,17 +5,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
-	"time"
 )
 
 func main() {
-	// TODO:(6) Make this configurable
-	address := ":8080"
-	var maxElements uint32 = 3
-	ttl := 10 * time.Second
+	// Config
+	config, err := cache.CreateConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	keyValueStore := cache.CreateCache[string, []byte](maxElements, ttl)
+	// Setup
+	keyValueStore := cache.CreateCache[string, []byte](config.MaxElements, config.ExpirySeconds)
 	server := cache.Server{Cache: keyValueStore}
 	mux := http.NewServeMux()
 
@@ -26,7 +28,7 @@ func main() {
 	// Create server
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	httpServer := &http.Server{
-		Addr:    address,
+		Addr:    config.LocalAddress,
 		Handler: mux,
 	}
 
@@ -34,9 +36,9 @@ func main() {
 	go func() {
 		err := httpServer.ListenAndServe()
 		if errors.Is(err, http.ErrServerClosed) {
-			fmt.Printf("server %s closed", address)
+			fmt.Printf("server %s closed", config.LocalAddress)
 		} else if err != nil {
-			fmt.Printf("error listening on server %s: %s\n", address, err)
+			fmt.Printf("error listening on server %s: %s\n", config.LocalAddress, err)
 		}
 		cancelCtx()
 	}()
