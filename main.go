@@ -45,5 +45,7 @@ func main() {
 		cancelCtx()
 	}()
 
+	fmt.Println("Starting server")
+	server.Print()
 	<-ctx.Done()
 }

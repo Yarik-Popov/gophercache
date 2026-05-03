@@ -2,6 +2,7 @@ package cache
 
 import (
 	"flag"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -27,7 +28,15 @@ func CreateConfig() (*Config, error) {
 	peerAddresses := *peerAddressesPtr
 
 	seconds := time.Duration(expirySeconds) * time.Second
-	peers := strings.Split(peerAddresses, ",")
+
+	// string.Split returns an array with the first element being the input if it can't split
+	var peers []string
+	if peerAddresses != "" {
+		peers = strings.Split(peerAddresses, ",")
+	}
+	fmt.Printf("peers: %d\n", len(peers))
+	fmt.Printf("peers: %v\n", (peers))
+	fmt.Printf("peerAddresses: %s\n", peerAddresses)
 
 	config := Config{
 		MaxElements:   maxElements,

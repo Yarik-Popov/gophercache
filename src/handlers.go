@@ -1,44 +1,113 @@
 package cache
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 )
 
+func writeGetResponse(w http.ResponseWriter, key string, val []byte, ok bool) {
+	if ok {
+		log.Printf("Found value: '%s' for key: '%s'\n", val, key)
+		w.WriteHeader(200)
+		w.Write(val)
+	} else {
+		errMsg := fmt.Sprintf("Key '%s' not found\n", key)
+		log.Print(errMsg)
+		http.Error(w, errMsg, 404)
+	}
+}
+
 func (s *Server) HandleGet(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
-	fmt.Println("Got /get/", key)
+	log.Println("Got /get/", key)
 
-	keyValueStore := s.localCache
-	val, ok := keyValueStore.Get(key)
-	if !ok {
-		fmt.Printf("Key '%s' not found\n", key)
-		w.WriteHeader(404)
-		io.WriteString(w, "(nil)")
+	if s.IsOwner(key) {
+		keyValueStore := s.localCache
+		val, ok := keyValueStore.Get(key)
+		writeGetResponse(w, key, val, ok)
 		return
 	}
 
-	fmt.Printf("Found value: '%s' for key: '%s'\n", val, key)
-	w.WriteHeader(200)
-	w.Write(val)
+	ownerAddr, err := s.GetOwner(key)
+	if err != nil {
+		log.Print(err)
+		http.Error(w, "Unexpected error", 500)
+		return
+	}
+
+	resp, err := http.Get(fmt.Sprintf("%s/get/%s", ownerAddr, key))
+	if err != nil {
+		log.Print(err)
+		http.Error(w, "Unexpected error", 500)
+		return
+	}
+
+	defer resp.Body.Close()
+	val, err := io.ReadAll(resp.Body)
+	writeGetResponse(w, key, val, resp.StatusCode == http.StatusOK)
 }
 
 func (s *Server) HandlePut(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
-	fmt.Println("Got /put/", key)
+	log.Println("Got /put/", key)
 
-	val, err := io.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		fmt.Printf("Could not read body: %s\n", err)
+		log.Printf("Could not read body: %s\n", err)
 		w.WriteHeader(400)
 		return
 	}
 
-	keyValueStore := s.localCache
-	keyValueStore.Put(key, val)
+	if s.IsOwner(key) {
+		keyValueStore := s.localCache
+		keyValueStore.Put(key, body)
 
-	fmt.Printf("Updated key '%s' with '%s'\n", key, val)
+		log.Printf("Updated key '%s' with '%s'\n", key, body)
+		w.WriteHeader(200)
+		io.WriteString(w, "Succesfully updated key")
+		return
+	}
+
+	ownerAddr, err := s.GetOwner(key)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Unexpected error", 500)
+		return
+	}
+
+	log.Println("Redirecting to ", ownerAddr)
+
+	req, err := http.NewRequest("PUT", fmt.Sprintf("%s/put/%s", ownerAddr, key), bytes.NewBuffer(body))
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Unexpected error", 500)
+		return
+	}
+
+	// Set the appropriate Content-Type header if needed
+	req.Header.Set("Content-Type", "text/plain")
+
+	// Use an http.Client to send the request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Unexpected error", 500)
+		return
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		log.Println(resp.Status)
+		http.Error(w, req.Response.Status, req.Response.StatusCode)
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err = io.ReadAll(resp.Body)
 	w.WriteHeader(200)
-	io.WriteString(w, "Succesfully updated key")
+	w.Write(body)
+	log.Println(string(body))
 }
