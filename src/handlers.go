@@ -2,22 +2,64 @@ package cache
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"strings"
 )
 
-func writeGetResponse(w http.ResponseWriter, key string, val []byte, ok bool) {
-	if ok {
-		log.Printf("Found value: '%s' for key: '%s'\n", val, key)
-		w.WriteHeader(200)
-		w.Write(val)
-	} else {
-		errMsg := fmt.Sprintf("Key '%s' not found\n", key)
-		log.Print(errMsg)
-		http.Error(w, errMsg, 404)
+func StartServer() {
+	// Config
+	config, err := CreateConfig()
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	// Setup
+	server, err := CreateServer(config)
+	if err != nil {
+		log.Fatal(err)
+	}
+	mux := http.NewServeMux()
+
+	// Routes
+	mux.HandleFunc("GET /get/{key}", server.HandleGet)
+	mux.HandleFunc("PUT /put/{key}", server.HandlePut)
+
+	// Create server
+	ctx, cancelCtx := context.WithCancel(context.Background())
+
+	// httpServer doesn't like that we start with the protocol
+	addr := config.LocalAddress
+	if strings.HasPrefix(config.LocalAddress, "http://") {
+		addr = config.LocalAddress[len("http://"):]
+	} else if strings.HasPrefix(config.LocalAddress, "https://") {
+		addr = config.LocalAddress[len("https://"):]
+	}
+
+	httpServer := &http.Server{
+		Addr:    addr,
+		Handler: mux,
+	}
+
+	// Start server
+	go func() {
+		err := httpServer.ListenAndServe()
+		if errors.Is(err, http.ErrServerClosed) {
+			log.Printf("server %s closed", config.LocalAddress)
+		} else if err != nil {
+			log.Printf("error listening on server %s: %s\n", config.LocalAddress, err)
+		}
+		cancelCtx()
+	}()
+
+	log.Println("Starting server")
+	server.Print()
+	<-ctx.Done()
+
 }
 
 func (s *Server) HandleGet(w http.ResponseWriter, r *http.Request) {
@@ -110,4 +152,18 @@ func (s *Server) HandlePut(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 	w.Write(body)
 	log.Println(string(body))
+}
+
+// Private functions
+
+func writeGetResponse(w http.ResponseWriter, key string, val []byte, ok bool) {
+	if ok {
+		log.Printf("Found value: '%s' for key: '%s'\n", val, key)
+		w.WriteHeader(200)
+		w.Write(val)
+	} else {
+		errMsg := fmt.Sprintf("Key '%s' not found\n", key)
+		log.Print(errMsg)
+		http.Error(w, errMsg, 404)
+	}
 }

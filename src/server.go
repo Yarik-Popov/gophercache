@@ -54,7 +54,7 @@ func (s *Server) Print() {
 	fmt.Printf("Server on %s", s.LocalAddress)
 	ttl := s.localCache.duration
 	if ttl == 0 {
-		fmt.Print(" with no ttl")
+		fmt.Print(" with unlimited ttl")
 	} else {
 		fmt.Printf(" with ttl of %d", ttl)
 	}
@@ -73,7 +73,6 @@ func (s *Server) Print() {
 	hash := s.ringOrdering[0]
 	nodeName := s.hashesToPeers[hash]
 	fmt.Printf("\t%s is responsible for [%d, %d]\n", nodeName, prevHash, uint64(math.MaxUint64))
-
 }
 
 func (s *Server) GetOwner(key string) (string, error) {
