@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 )
 
 func main() {
@@ -29,8 +30,17 @@ func main() {
 
 	// Create server
 	ctx, cancelCtx := context.WithCancel(context.Background())
+
+	// httpServer doesn't like that we start with the protocol
+	addr := config.LocalAddress
+	if strings.HasPrefix(config.LocalAddress, "http://") {
+		addr = config.LocalAddress[len("http://"):]
+	} else if strings.HasPrefix(config.LocalAddress, "https://") {
+		addr = config.LocalAddress[len("https://"):]
+	}
+
 	httpServer := &http.Server{
-		Addr:    config.LocalAddress,
+		Addr:    addr,
 		Handler: mux,
 	}
 

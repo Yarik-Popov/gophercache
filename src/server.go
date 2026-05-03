@@ -3,10 +3,16 @@ package cache
 import (
 	"errors"
 	"fmt"
-	"hash/crc64"
+	"hash/fnv"
 	"math"
 	"slices"
 )
+
+func hashString(s string) uint64 {
+	h := fnv.New64a()
+	h.Write([]byte(s))
+	return h.Sum64()
+}
 
 type Server struct {
 	LocalAddress  string
@@ -14,7 +20,6 @@ type Server struct {
 	localCache    *Cache[string, []byte]
 	ringOrdering  []uint64
 	hashesToPeers map[uint64]string
-	table         *crc64.Table // Needed to compute crc64
 }
 
 func CreateServer(config *Config) (*Server, error) {
@@ -29,20 +34,17 @@ func CreateServer(config *Config) (*Server, error) {
 		Peers:         peers,
 		ringOrdering:  make([]uint64, numNodes),
 		hashesToPeers: make(map[uint64]string),
-		table:         crc64.MakeTable(1000),
 	}
 
 	for i, peer := range peers {
-		peerHash := crc64.Checksum([]byte(peer), server.table)
+		peerHash := hashString(peer)
 		server.ringOrdering[i] = peerHash
 		server.hashesToPeers[peerHash] = peer
-		fmt.Printf("i: %d, peer:%s, peerHash: %d\n", i, peer, peerHash)
 	}
 
-	peerHash := crc64.Checksum([]byte(localAddress), server.table)
+	peerHash := hashString(localAddress)
 	server.ringOrdering[numNodes-1] = peerHash
 	server.hashesToPeers[peerHash] = localAddress
-	fmt.Printf("numNodes-1: %d, peer:%s, peerHash: %d\n", numNodes-1, localAddress, peerHash)
 
 	slices.Sort(server.ringOrdering)
 	return &server, nil
@@ -75,7 +77,7 @@ func (s *Server) Print() {
 }
 
 func (s *Server) GetOwner(key string) (string, error) {
-	keyHash := crc64.Checksum([]byte(key), s.table)
+	keyHash := hashString(key)
 	nodeIndex, _ := slices.BinarySearch(s.ringOrdering, keyHash)
 
 	var nodeHash uint64
