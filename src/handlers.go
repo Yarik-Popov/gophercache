@@ -66,17 +66,17 @@ func (s *Server) HandleGet(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
 	log.Println("Got /get/", key)
 
-	if s.IsOwner(key) {
-		keyValueStore := s.localCache
-		val, ok := keyValueStore.Get(key)
-		writeGetResponse(w, key, val, ok)
-		return
-	}
-
 	ownerAddr, err := s.GetOwner(key)
 	if err != nil {
 		log.Print(err)
 		http.Error(w, "Unexpected error", 500)
+		return
+	}
+
+	if s.LocalAddress == ownerAddr {
+		keyValueStore := s.localCache
+		val, ok := keyValueStore.Get(key)
+		writeGetResponse(w, key, val, ok)
 		return
 	}
 
@@ -103,20 +103,20 @@ func (s *Server) HandlePut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.IsOwner(key) {
+	ownerAddr, err := s.GetOwner(key)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Unexpected error", 500)
+		return
+	}
+
+	if s.LocalAddress == ownerAddr {
 		keyValueStore := s.localCache
 		keyValueStore.Put(key, body)
 
 		log.Printf("Updated key '%s' with '%s'\n", key, body)
 		w.WriteHeader(200)
 		io.WriteString(w, "Succesfully updated key")
-		return
-	}
-
-	ownerAddr, err := s.GetOwner(key)
-	if err != nil {
-		log.Println(err)
-		http.Error(w, "Unexpected error", 500)
 		return
 	}
 

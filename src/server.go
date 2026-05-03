@@ -92,9 +92,3 @@ func (s *Server) GetOwner(key string) (string, error) {
 	}
 	return nodeAddress, nil
 }
-
-// TODO:(8)
-func (s *Server) IsOwner(key string) bool {
-	owner, err := s.GetOwner(key)
-	return err == nil && owner == s.LocalAddress
-}
