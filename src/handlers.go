@@ -81,43 +81,6 @@ func StartServer() {
 	<-ctx.Done()
 }
 
-func (s *Server) StartHeartbeatingNeighbour(neighbour string) {
-	log.Printf("Starting to heartbeat %s", neighbour)
-	ticker := time.NewTicker(s.config.HeartbeatInterval)
-	defer ticker.Stop()
-
-	done := make(chan struct{})
-
-	count := 0
-	remainingAttempts := s.config.MaxFailedHeartbeats
-
-	go func() {
-		for {
-			select {
-			case <-done:
-				// Announce that neighbour is dead
-				log.Printf("Neighbour %s is unreachable", neighbour)
-			case <-ticker.C:
-				count++
-				// Make gRPC call to neighbour
-				remainingAttempts--
-				log.Printf("Heartbeated %s %d times with %d remaining heartbeats\n", neighbour, count, remainingAttempts)
-				if remainingAttempts <= 0 {
-					ticker.Stop()
-					close(done)
-				}
-			}
-		}
-	}()
-}
-
-func (s *Server) StartHeartbeats() {
-	log.Printf("Waiting %f seconds before starting heartbeats", s.config.InitialHeartbeatWait.Abs().Seconds())
-	time.Sleep(s.config.InitialHeartbeatWait)
-	s.StartHeartbeatingNeighbour(s.PrevServer())
-	s.StartHeartbeatingNeighbour(s.NextServer())
-}
-
 func (s *Server) HandleGet(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
 	log.Println("Got /get/", key)
