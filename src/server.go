@@ -15,11 +15,13 @@ func hashString(s string) uint64 {
 }
 
 type Server struct {
+	config        *Config
 	LocalAddress  string
 	Peers         []string
 	localCache    *Cache[string, []byte]
 	ringOrdering  []uint64
 	hashesToPeers map[uint64]string
+	currentIndex  int
 }
 
 func CreateServer(config *Config) (*Server, error) {
@@ -29,6 +31,7 @@ func CreateServer(config *Config) (*Server, error) {
 	numNodes := 1 + len(peers)
 
 	server := Server{
+		config:        config,
 		localCache:    keyValueStore,
 		LocalAddress:  localAddress,
 		Peers:         peers,
@@ -42,12 +45,35 @@ func CreateServer(config *Config) (*Server, error) {
 		server.hashesToPeers[peerHash] = peer
 	}
 
-	peerHash := hashString(localAddress)
-	server.ringOrdering[numNodes-1] = peerHash
-	server.hashesToPeers[peerHash] = localAddress
+	currentNodeHash := hashString(localAddress)
+	server.ringOrdering[numNodes-1] = currentNodeHash
+	server.hashesToPeers[currentNodeHash] = localAddress
 
 	slices.Sort(server.ringOrdering)
+
+	idx := slices.Index(server.ringOrdering, currentNodeHash)
+	if idx == -1 {
+		return nil, errors.New("Cannot find current node in ring ordering")
+	}
+	server.currentIndex = idx
+
 	return &server, nil
+}
+
+func (s *Server) PrevServer() string {
+	idx := s.currentIndex - 1
+	if idx < 0 {
+		idx = len(s.ringOrdering) - 1
+	}
+	return s.hashesToPeers[s.ringOrdering[idx]]
+}
+
+func (s *Server) NextServer() string {
+	idx := s.currentIndex + 1
+	if idx == len(s.ringOrdering) {
+		idx = 0
+	}
+	return s.hashesToPeers[s.ringOrdering[idx]]
 }
 
 func (s *Server) Print() {

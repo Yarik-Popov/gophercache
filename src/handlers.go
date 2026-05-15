@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 func StartServer() {
@@ -28,6 +29,7 @@ func StartServer() {
 	// Routes
 	mux.HandleFunc("GET /get/{key}", server.HandleGet)
 	mux.HandleFunc("PUT /put/{key}", server.HandlePut)
+	mux.HandleFunc("PUT /heartbeat", server.HandleHeartbeat)
 
 	// Create server
 	ctx, cancelCtx := context.WithCancel(context.Background())
@@ -58,8 +60,62 @@ func StartServer() {
 
 	log.Println("Starting server")
 	server.Print()
-	<-ctx.Done()
 
+	ticker := time.NewTicker(config.HeartbeatInterval)
+	defer ticker.Stop()
+
+	prevHeartBeater := CreateHeartBeater(server.PrevServer(), config)
+	nextHeartBeater := CreateHeartBeater(server.NextServer(), config)
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				prevHeartBeater.Heartbeat()
+				nextHeartBeater.Heartbeat()
+			}
+		}
+	}()
+	<-ctx.Done()
+}
+
+func (s *Server) StartHeartbeatingNeighbour(neighbour string) {
+	log.Printf("Starting to heartbeat %s", neighbour)
+	ticker := time.NewTicker(s.config.HeartbeatInterval)
+	defer ticker.Stop()
+
+	done := make(chan struct{})
+
+	count := 0
+	remainingAttempts := s.config.MaxFailedHeartbeats
+
+	go func() {
+		for {
+			select {
+			case <-done:
+				// Announce that neighbour is dead
+				log.Printf("Neighbour %s is unreachable", neighbour)
+			case <-ticker.C:
+				count++
+				// Make gRPC call to neighbour
+				remainingAttempts--
+				log.Printf("Heartbeated %s %d times with %d remaining heartbeats\n", neighbour, count, remainingAttempts)
+				if remainingAttempts <= 0 {
+					ticker.Stop()
+					close(done)
+				}
+			}
+		}
+	}()
+}
+
+func (s *Server) StartHeartbeats() {
+	log.Printf("Waiting %f seconds before starting heartbeats", s.config.InitialHeartbeatWait.Abs().Seconds())
+	time.Sleep(s.config.InitialHeartbeatWait)
+	s.StartHeartbeatingNeighbour(s.PrevServer())
+	s.StartHeartbeatingNeighbour(s.NextServer())
 }
 
 func (s *Server) HandleGet(w http.ResponseWriter, r *http.Request) {
@@ -152,6 +208,21 @@ func (s *Server) HandlePut(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 	w.Write(body)
 	log.Println(string(body))
+}
+
+// We don't care about the output or input. We just want to send a response. Any response shows the server is still alive
+func (s *Server) HandleHeartbeat(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Could not read body: %s\n", err)
+		w.WriteHeader(400)
+		return
+	}
+	address := string(body)
+	log.Printf("Received heartbeat from %s", address)
+
+	w.WriteHeader(200)
+	w.Write([]byte(s.LocalAddress))
 }
 
 // Private functions
